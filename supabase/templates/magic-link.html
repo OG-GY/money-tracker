@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Your Money Tracker sign-in code</title>
+  <style>
+    /* Clients that support it (Apple Mail, iOS, Outlook.com) get the app's dark theme. */
+    @media (prefers-color-scheme: dark) {
+      .bg { background: #09090b !important; }
+      .card { background: #18181b !important; border-color: #27272a !important; }
+      .ink { color: #fafafa !important; }
+      .muted { color: #a1a1aa !important; }
+      .codebox { background: #27272a !important; border-color: #3f3f46 !important; }
+      .rule { border-color: #27272a !important; }
+    }
+    a { text-decoration: none; }
+  </style>
+</head>
+<body class="bg" style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <!-- Inbox preview text -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Your sign-in code is {{ .Token }}. It expires in an hour.</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg" style="background:#f4f4f5;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+
+          <!-- Brand -->
+          <tr>
+            <td style="padding:0 4px 20px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;background:#2563eb;border-radius:11px;color:#ffffff;font-size:20px;font-weight:700;line-height:40px;">₨</td>
+                  <td style="padding-left:12px;">
+                    <span class="ink" style="font-size:17px;font-weight:600;color:#18181b;">Money Tracker</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td class="card" style="background:#ffffff;border:1px solid #e4e4e7;border-radius:20px;padding:32px 28px;">
+              <h1 class="ink" style="margin:0 0 8px;font-size:24px;line-height:1.25;font-weight:700;color:#18181b;">Welcome back</h1>
+              <p class="muted" style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#71717a;">
+                Tap the button to sign in, or type the code into the app — best when you're using the installed app on your phone.
+              </p>
+
+              <!-- Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="border-radius:12px;background:#2563eb;">
+                    <a href="{{ .ConfirmationURL }}" style="display:block;padding:15px 24px;font-size:16px;font-weight:600;color:#ffffff;border-radius:12px;">Sign in to Money Tracker</a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0 20px;">
+                <tr>
+                  <td class="rule" style="border-top:1px solid #e4e4e7;font-size:0;line-height:0;">&nbsp;</td>
+                  <td class="muted" width="1" style="padding:0 12px;font-size:12px;color:#a1a1aa;white-space:nowrap;text-transform:uppercase;letter-spacing:1px;">or use this code</td>
+                  <td class="rule" style="border-top:1px solid #e4e4e7;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+
+              <!-- Code -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" class="codebox" style="background:#f4f4f5;border:1px solid #e4e4e7;border-radius:14px;padding:18px 12px;">
+                    <span class="ink" style="font-family:'SFMono-Regular',Menlo,Consolas,'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:#18181b;">{{ .Token }}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <p class="muted" style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#71717a;">
+                The link and code work once and expire in an hour. If you didn't try to sign in, you can safely ignore this email — nobody can get in without it.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:24px 8px 0;">
+              <p class="ink" style="margin:0 0 4px;font-size:14px;font-weight:600;color:#18181b;">Speak it. Track it. Own every rupee.</p>
+              <p class="muted" style="margin:0;font-size:12px;line-height:1.6;color:#a1a1aa;">
+                Voice entries · Envelopes · Loans · Ventures · Insights<br>
+                Sent to {{ .Email }} · <a href="{{ .SiteURL }}" style="color:#2563eb;">Open the app</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
