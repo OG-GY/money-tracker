@@ -8,7 +8,7 @@ import { formatDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { EnvelopeHealth, Savings } from "./budget";
 import { Loans, Ventures } from "./business";
-import { CashFlow, MoneyFlow, SummaryTiles } from "./overview";
+import { CashFlow, MoneyFlow, SummaryTiles, WhereItCameFrom } from "./overview";
 import { Leaks, SpendingCalendar, SpendingTreemap, WhereItGoes } from "./spending";
 import { useAnalytics } from "./use-analytics";
 import { Accounts, Income, NetWorth } from "./wealth";
@@ -70,6 +70,7 @@ export function AnalyticsView() {
             {tab === "overview" && (
               <>
                 <SummaryTiles a={a} />
+                <WhereItCameFrom a={a} />
                 <CashFlow a={a} />
                 <MoneyFlow a={a} />
               </>

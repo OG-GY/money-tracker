@@ -7,7 +7,19 @@ export type NeedWant = "need" | "want";
 export type ForWhom = "self" | "gift" | "family" | "household" | "other";
 export type LoanAction = "lend" | "borrow" | "repay_to_me" | "repay_by_me" | "friend_paid" | "write_off";
 export type EntryMethod = "manual" | "voice" | "system";
-export type TxType = "income" | "expense" | "transfer" | "loan" | "opening";
+export type TxType = "income" | "expense" | "transfer" | "loan" | "opening" | "adjustment";
+
+/** Result of public.update_balance. */
+export type BalanceUpdate = {
+  kind: "none" | "opening" | "profit" | "adjustment";
+  previous: number;
+  balance: number;
+  difference: number;
+  transaction_id: string | null;
+  flagged: boolean;
+};
+
+export type BalanceSnapshot = { id: string; account_id: string; taken_on: string; balance: number; created_at: string };
 
 export type Account = {
   id: string;

@@ -5,12 +5,12 @@ import { useState } from "react";
 import { ChartCard, ChartEmpty } from "@/components/charts/chart-card";
 import { EChart, baseOption, categoryAxis, valueAxis } from "@/components/charts/echart";
 import { Segmented } from "@/components/chip";
-import { cashflowDaily, cashflowMonthly, moneyFlow, periodSummary } from "@/lib/analytics/compute";
+import { cashflowDaily, cashflowMonthly, incomeBySourceInRange, moneyFlow, periodSummary } from "@/lib/analytics/compute";
 import { daysBetween } from "@/lib/analytics/period";
 import { formatDay } from "@/lib/dates";
 import { formatCompactPKR, formatPKR, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Analytics } from "./use-analytics";
+import { slotColor, type Analytics } from "./use-analytics";
 
 // ── 1. Period summary ────────────────────────────────────────────────────────
 
@@ -112,6 +112,79 @@ export function CashFlow({ a }: { a: Analytics }) {
             series: [line("Money in", t.income, points.map((p) => p.income)), line("Money out", t.expense, points.map((p) => p.expense))],
           }}
         />
+      )}
+    </ChartCard>
+  );
+}
+
+// ── Where it came from (income breakdown for the period) ─────────────────────
+
+export function WhereItCameFrom({ a }: { a: Analytics }) {
+  const t = a.theme!;
+  const sources = incomeBySourceInRange(a.rows, a.current, a.lookups);
+  const total = sources.reduce((s, x) => s + x.amount, 0);
+  // Same stable colours as "Income by source": a source keeps its colour across periods.
+  const named = sources.filter((s) => a.sourceSlots.has(s.id));
+  const rest = sources.filter((s) => !a.sourceSlots.has(s.id));
+  const slices = [
+    ...named.map((s) => ({ ...s, color: slotColor(a, a.sourceSlots.get(s.id)) })),
+    ...(rest.length
+      ? [{ id: "other", name: "Other", amount: rest.reduce((s, x) => s + x.amount, 0), count: rest.reduce((s, x) => s + x.count, 0), color: t.other }]
+      : []),
+  ];
+
+  return (
+    <ChartCard
+      title="Where it came from"
+      description={total ? `${formatPKR(total)} came in` : "Income by source"}
+      table={{
+        columns: ["Source", "Payments", "Amount", "Share"],
+        rows: sources.map((s) => [s.name, s.count, formatPKR(s.amount), `${((s.amount / (total || 1)) * 100).toFixed(1)}%`]),
+      }}
+    >
+      {!total ? (
+        <ChartEmpty height={220}>No income in this period.</ChartEmpty>
+      ) : (
+        <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+          <EChart
+            label="Donut chart of income by source"
+            height={220}
+            option={{
+              ...baseOption(t),
+              tooltip: {
+                ...baseOption(t).tooltip,
+                trigger: "item",
+                formatter: (p: { name: string; value: number; percent: number }) => `${p.name}<br/><b>${formatPKR(p.value)}</b> · ${p.percent}%`,
+              },
+              series: [
+                {
+                  type: "pie",
+                  radius: ["58%", "82%"],
+                  padAngle: 1,
+                  itemStyle: { borderColor: t.surface, borderWidth: 2, borderRadius: 4 },
+                  label: { show: true, position: "center", formatter: () => formatCompactPKR(total), color: t.fg, fontSize: 20, fontWeight: 600 },
+                  labelLine: { show: false },
+                  emphasis: { scale: true, scaleSize: 4 },
+                  data: slices.map((s) => ({ name: s.name, value: s.amount, itemStyle: { color: s.color } })),
+                },
+              ],
+            }}
+          />
+          {/* Legend with amounts: identity never rests on colour alone. */}
+          <ul className="flex flex-col gap-2.5 text-sm">
+            {slices.map((s) => (
+              <li key={s.id} className="flex items-center gap-2">
+                <span className="size-2.5 shrink-0 rounded-sm" style={{ background: s.color }} />
+                <span className="min-w-0 flex-1 truncate">
+                  {s.name}
+                  <span className="text-muted-foreground"> · {s.count}×</span>
+                </span>
+                <span className="font-medium tabular">{formatPKR(s.amount)}</span>
+                <span className="w-10 text-right text-muted-foreground tabular">{Math.round((s.amount / total) * 100)}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </ChartCard>
   );

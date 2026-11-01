@@ -34,6 +34,7 @@ const TYPE_OPTIONS: { value: TxType; label: string }[] = [
   { value: "transfer", label: "Transfers" },
   { value: "loan", label: "Loans & repayments" },
   { value: "opening", label: "Opening balances" },
+  { value: "adjustment", label: "Balance corrections" },
 ];
 const FOR_WHOM = [
   { value: "self", label: "Me" },

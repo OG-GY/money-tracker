@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   Ban,
+  Scale,
   Flag,
   HandCoins,
   HandHeart,
@@ -79,6 +80,11 @@ export function describeTx(tx: TypedTransaction, m: Model): TxDisplay {
         icon: ArrowDownLeft,
         sign: 1,
       };
+    case "adjustment": {
+      const acc = m.accountById.get(tx.from_account_id)?.kind === "asset" ? from : to;
+      const up = m.accountById.get(tx.to_account_id)?.kind === "asset";
+      return { title: "Balance correction", subtitle: acc, category: null, icon: Scale, sign: up ? 1 : -1 };
+    }
     case "opening":
       return { title: "Opening balance", subtitle: to, category: null, icon: Flag, sign: 0 };
     case "transfer":

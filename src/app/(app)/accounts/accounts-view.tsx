@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Banknote, ChevronRight, Landmark, Loader2, PiggyBank, Plus, Smartphone, TrendingUp } from "lucide-react";
+import { Banknote, ChevronRight, Landmark, Loader2, PiggyBank, Plus, Scale, Smartphone, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
@@ -27,7 +27,8 @@ export function AccountsView() {
 
   const onBudget = rows.filter((r) => r.kind === "asset" && r.on_budget);
   const offBudget = rows.filter((r) => r.kind === "asset" && !r.on_budget);
-  const sources = rows.filter((r) => r.kind === "source" && r.name !== "Opening Balance");
+  // System sources (opening balances, corrections) aren't real income.
+  const sources = rows.filter((r) => r.kind === "source" && r.name !== "Opening Balance" && r.name !== "Balance correction");
   const sum = (list: AccountBalance[]) => list.reduce((s, r) => s + Number(r.balance), 0);
 
   return (
@@ -35,9 +36,14 @@ export function AccountsView() {
       <PageHeader
         title="Accounts"
         action={
-          <Button size="lg" className="h-10" onClick={() => setAdding(true)}>
-            <Plus /> Add
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="lg" className="h-10" render={<Link href="/accounts/balances" />} nativeButton={false}>
+              <Scale /> Set balances
+            </Button>
+            <Button size="lg" className="h-10" onClick={() => setAdding(true)}>
+              <Plus /> Add
+            </Button>
+          </div>
         }
       />
 

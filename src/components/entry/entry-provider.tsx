@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { ResponsivePanel } from "@/components/responsive-panel";
 import type { TypedTransaction } from "@/lib/db/types";
 import { EntryForm, EntrySubmit, type EntryPreset } from "./entry-form";
@@ -33,6 +34,12 @@ export function EntryProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }, []);
   const openEdit = useCallback((tx: TypedTransaction) => {
+    if (tx.tx_type === "adjustment") {
+      toast("Balance corrections can't be edited", {
+        description: "Delete it, or run Update balance on the account again.",
+      });
+      return;
+    }
     setEditing(tx);
     setSession((s) => s + 1);
     setOpen(true);

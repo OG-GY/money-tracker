@@ -31,12 +31,20 @@ export default function SettingsPage() {
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="font-medium">Setup</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">Add accounts with opening balances and income sources.</p>
-          <Link
-            href="/setup"
-            className="mt-4 inline-flex h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
-          >
-            Open setup
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/setup"
+              className="inline-flex h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
+            >
+              Open setup
+            </Link>
+            <Link
+              href="/accounts/balances"
+              className="inline-flex h-11 items-center rounded-lg border px-4 text-sm font-medium hover:bg-muted"
+            >
+              Set account balances
+            </Link>
+          </div>
         </section>
 
         <section className="rounded-2xl border bg-card p-5">

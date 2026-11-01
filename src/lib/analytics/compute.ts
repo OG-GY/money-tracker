@@ -241,6 +241,20 @@ export function incomeBySource(rows: Row[], months: string[], l: Lookups) {
   }));
 }
 
+/** Income per source within one period, largest first. */
+export function incomeBySourceInRange(rows: Row[], range: Range, l: Lookups): (Slice & { count: number })[] {
+  const by = new Map<string, { amount: number; count: number }>();
+  for (const r of within(rows, range).filter(isIncome)) {
+    const g = by.get(r.from_account_id) ?? { amount: 0, count: 0 };
+    g.amount += r.amount;
+    g.count++;
+    by.set(r.from_account_id, g);
+  }
+  return [...by]
+    .map(([id, g]) => ({ id, name: l.accountById.get(id)?.name ?? "Unknown", ...g }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
 /** Salary vs irregular: a source named "salary", or one that paid in each of the last 3 months. */
 export function regularSources(series: ReturnType<typeof incomeBySource>) {
   return new Set(

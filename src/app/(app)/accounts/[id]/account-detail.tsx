@@ -1,12 +1,16 @@
 "use client";
 
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Scale } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
+import { UpdateBalancePanel } from "@/components/balance/update-balance-panel";
 import { TxList } from "@/components/transactions/tx-list";
+import { Button } from "@/components/ui/button";
+import { formatDay } from "@/lib/dates";
 import { formatPKR } from "@/lib/format";
-import { useBalances, useTransactions } from "@/lib/ledger/queries";
+import { useBalances, useLastSnapshots, useTransactions } from "@/lib/ledger/queries";
 import { cn } from "@/lib/utils";
 
 export function AccountDetail() {
@@ -14,6 +18,9 @@ export function AccountDetail() {
   const balances = useBalances();
   const tx = useTransactions({ accountId: id });
   const account = balances.data?.find((b) => b.account_id === id);
+  const snapshots = useLastSnapshots();
+  const [updating, setUpdating] = useState(false);
+  const lastChecked = snapshots.data?.get(id);
 
   if (balances.isLoading) {
     return (
@@ -50,9 +57,15 @@ export function AccountDetail() {
           {isSource ? (
             <p className="mt-1 text-sm text-muted-foreground">Received all time</p>
           ) : (
-            <p className="mt-1 text-sm text-muted-foreground">
-              In {formatPKR(Number(account.total_in))} · Out {formatPKR(Number(account.total_out))}
-            </p>
+            <>
+              <p className="mt-1 text-sm text-muted-foreground">
+                In {formatPKR(Number(account.total_in))} · Out {formatPKR(Number(account.total_out))}
+                {lastChecked && ` · checked ${formatDay(lastChecked.taken_on)}`}
+              </p>
+              <Button variant="outline" className="mt-4 h-10" onClick={() => setUpdating(true)}>
+                <Scale /> Update balance
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -63,6 +76,7 @@ export function AccountDetail() {
           <TxList items={tx.data ?? []} empty="No entries for this account yet." />
         )}
       </div>
+      {!isSource && <UpdateBalancePanel account={account} open={updating} onOpenChange={setUpdating} />}
     </>
   );
 }

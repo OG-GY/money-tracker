@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import type {
   Account,
   AccountBalance,
+  BalanceSnapshot,
+  BalanceUpdate,
   BudgetOverview,
   Category,
   Envelope,
@@ -42,6 +44,7 @@ export const keys = {
   envelopeBalances: (month: string) => [LEDGER, "envelope-balances", month] as const,
   budget: (month?: string) => [LEDGER, "budget", month ?? "all"] as const,
   moves: (envelopeId?: string) => [LEDGER, "moves", envelopeId ?? "all"] as const,
+  snapshots: [LEDGER, "snapshots"] as const,
 };
 
 function unwrap<T>({ data, error }: { data: T | null; error: { message: string } | null }): T {
@@ -491,6 +494,33 @@ export function useSaveEnvelope() {
       if (id) unwrap(await db().from("envelopes").update(values).eq("id", id).select("id"));
       else unwrap(await db().from("envelopes").insert({ ...values, kind: "personal" }).select("id"));
     },
+  );
+}
+
+/** Latest "Update balance" per account (when you last checked it against the bank). */
+export function useLastSnapshots() {
+  return useQuery({
+    queryKey: keys.snapshots,
+    queryFn: async () => {
+      const rows = unwrap<BalanceSnapshot[]>(
+        await db().from("balance_snapshots").select("*").order("taken_on", { ascending: false }).order("created_at", { ascending: false }).limit(500),
+      );
+      const latest = new Map<string, BalanceSnapshot>();
+      for (const r of rows) if (!latest.has(r.account_id)) latest.set(r.account_id, { ...r, balance: Number(r.balance) });
+      return latest;
+    },
+  });
+}
+
+/** Tell the app what an account really holds; the DB records the difference (SPEC §2.7). */
+export async function updateBalance(accountId: string, balance: number, date?: string) {
+  const r = unwrap<BalanceUpdate>(await db().rpc("update_balance", { p_account: accountId, p_balance: balance, p_date: date ?? null }));
+  return { ...r, previous: Number(r.previous), balance: Number(r.balance), difference: Number(r.difference) };
+}
+
+export function useUpdateBalance() {
+  return useLedgerMutation(({ accountId, balance, date }: { accountId: string; balance: number; date?: string }) =>
+    updateBalance(accountId, balance, date),
   );
 }
 
