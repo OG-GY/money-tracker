@@ -19,5 +19,10 @@ Personal finance PWA. The full spec is in [SPEC.md](SPEC.md).
 
 ## Deploy (Vercel Hobby)
 
-Import the repo in Vercel, then add the same environment variables as `.env.local`, plus `CRON_SECRET` (any long random string).
-`vercel.json` runs `/api/cron/keepalive` once a day so the free Supabase project never pauses.
+Import the repo in Vercel and add the same environment variables as `.env.local`.
+
+Daily use keeps the free Supabase project awake, so no keep-alive cron is scheduled. If you expect a week or more without opening the app, either restore the project from the Supabase dashboard when you're back, or re-enable the keep-alive: set `CRON_SECRET` in Vercel and add this to `vercel.json`:
+
+```json
+"crons": [{ "path": "/api/cron/keepalive", "schedule": "0 3 * * *" }]
+```
