@@ -1,9 +1,21 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { AlertTriangle, ArrowDownLeft, ArrowRight, ArrowUpRight, Plus, Scale, Sparkles, Wallet } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownLeft,
+  ArrowRight,
+  ArrowUpRight,
+  ChevronRight,
+  HandCoins,
+  Plus,
+  Scale,
+  Sparkles,
+  Wallet,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { useEntry } from "@/components/entry/entry-provider";
 import { PageHeader } from "@/components/page-header";
@@ -21,9 +33,11 @@ import {
   useEnvelopeBalances,
   useOpenItems,
   usePeriodSummary,
+  usePersonBalances,
   useTransactions,
 } from "@/lib/ledger/queries";
 import { cn } from "@/lib/utils";
+import { BreakdownPanel, type Breakdown } from "./home-breakdowns";
 
 const container: Variants = { show: { transition: { staggerChildren: 0.06 } } };
 const item: Variants = {
@@ -52,10 +66,22 @@ export function HomeView() {
   const needsSetup = !m.isLoading && m.assets.length === 0;
   const assets = (balances.data ?? []).filter((b) => b.kind === "asset");
 
-  const cards: { label: string; value: number; icon: LucideIcon; tone: string }[] = [
-    { label: "Money in", value: s.income, icon: ArrowDownLeft, tone: "text-income" },
-    { label: "Money out", value: s.expense, icon: ArrowUpRight, tone: "text-expense" },
-    { label: "Net", value: s.net, icon: Scale, tone: s.net < 0 ? "text-expense" : "text-foreground" },
+  const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+  const people = usePersonBalances();
+  const activePeople = (people.data ?? []).filter((p) => !p.archived);
+  const owedToMe = activePeople.reduce((sum, p) => sum + Math.max(p.they_owe_me, 0), 0);
+  const iOwe = activePeople.reduce((sum, p) => sum + Math.max(p.i_owe_them, 0), 0);
+
+  const cards: { label: string; value: number; icon: LucideIcon; tone: string; hint: string; opens: Breakdown }[] = [
+    { label: "Earnings", value: s.income, icon: ArrowDownLeft, tone: "text-income", hint: "Tap to see where it came from", opens: "earnings" },
+    {
+      label: "Spendings",
+      value: s.expense,
+      icon: ArrowUpRight,
+      tone: "text-expense",
+      hint: `${formatPKR(s.expense / Math.max(daysElapsed, 1))} a day · by category`,
+      opens: "spendings",
+    },
   ];
 
   return (
@@ -82,21 +108,59 @@ export function HomeView() {
           </motion.div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {cards.map((c) => (
-            <motion.div key={c.label} variants={item} className={cn("rounded-2xl border bg-card p-4", c.label === "Net" && "col-span-2 sm:col-span-1")}>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <motion.button
+              key={c.label}
+              type="button"
+              variants={item}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setBreakdown(c.opens)}
+              className="group flex flex-col rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-muted/50"
+            >
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
                 <c.icon className={cn("size-4", c.tone)} />
-                {c.label}
-              </div>
+                <span className="flex-1">{c.label}</span>
+                <ChevronRight className="size-4 opacity-50 transition-opacity group-hover:opacity-100" />
+              </span>
               <AnimatedNumber value={c.value} className={cn("mt-2 block text-xl font-semibold tabular md:text-2xl", c.tone)} />
-            </motion.div>
+              <span className="mt-0.5 text-xs text-muted-foreground">{c.hint}</span>
+            </motion.button>
           ))}
-          <motion.div variants={item} className="col-span-2 rounded-2xl border bg-card p-4 sm:col-span-1">
-            <p className="text-sm text-muted-foreground">Daily average spend</p>
-            <AnimatedNumber value={s.expense / Math.max(daysElapsed, 1)} className="mt-2 block text-xl font-semibold tabular md:text-2xl" />
+
+          {/* Loans: both directions at a glance; tap for who owes what. */}
+          <motion.button
+            type="button"
+            variants={item}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setBreakdown("loans")}
+            className="group flex flex-col rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-muted/50"
+          >
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <HandCoins className="size-4 text-primary" />
+              <span className="flex-1">Loans</span>
+              <ChevronRight className="size-4 opacity-50 transition-opacity group-hover:opacity-100" />
+            </span>
+            <span className="mt-2 flex items-baseline justify-between gap-2">
+              <span className="text-xs text-muted-foreground">Owed to you</span>
+              <span className="font-semibold text-income tabular">{formatPKR(owedToMe)}</span>
+            </span>
+            <span className="mt-1 flex items-baseline justify-between gap-2">
+              <span className="text-xs text-muted-foreground">You owe</span>
+              <span className="font-semibold text-expense tabular">{formatPKR(iOwe)}</span>
+            </span>
+          </motion.button>
+
+          <motion.div variants={item} className="flex flex-col rounded-2xl border bg-card p-4">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Scale className={cn("size-4", s.net < 0 ? "text-expense" : "text-foreground")} /> Net
+            </span>
+            <AnimatedNumber value={s.net} className={cn("mt-2 block text-xl font-semibold tabular md:text-2xl", s.net < 0 && "text-expense")} />
+            <span className="mt-0.5 text-xs text-muted-foreground">Earnings − spendings</span>
           </motion.div>
         </div>
+
+        <BreakdownPanel open={breakdown} onOpenChange={setBreakdown} range={{ start, end }} label={formatMonth(today)} today={today} />
 
         <PendingDrafts />
 
