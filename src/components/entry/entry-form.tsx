@@ -8,7 +8,7 @@ import { Chip, Segmented } from "@/components/chip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ForWhom, LoanAction, NeedWant, TypedTransaction } from "@/lib/db/types";
+import type { ForWhom, NeedWant, TypedTransaction } from "@/lib/db/types";
 import { formatDay } from "@/lib/dates";
 import { formatPKR, todayInKarachi } from "@/lib/format";
 import { useLedgerModel } from "@/lib/ledger/model";
@@ -25,6 +25,7 @@ import {
   fieldErrors,
   transactionInput,
   type EntryType,
+  type FormLoanAction,
   type TransactionInput,
   type TransactionValues,
 } from "@/lib/ledger/schema";
@@ -48,7 +49,7 @@ const FOR_WHOM: { value: ForWhom; label: string }[] = [
 /** What a screen can pre-fill when it opens the form (e.g. "Lend" on a person). */
 export type EntryPreset = {
   type?: EntryType;
-  loan_action?: LoanAction;
+  loan_action?: FormLoanAction;
   person_id?: string;
   venture_id?: string;
   settles_transaction_id?: string;
@@ -70,7 +71,7 @@ type Draft = {
   /** "" = let the default decide (category envelope, Savings goal or To Assign). */
   envelope_id: string;
   // Loans
-  loan_action: LoanAction | "";
+  loan_action: FormLoanAction | "";
   person_id: string;
   account_id: string;
   due_date: string;
@@ -112,7 +113,8 @@ function fromTransaction(tx: TypedTransaction): Draft {
     venture_id: tx.venture_id ?? "",
     envelope_id: tx.envelope_id ?? "",
   };
-  if (!tx.loan_action) return base;
+  // Starting balances are edited from the person's page, never here.
+  if (!tx.loan_action || tx.loan_action === "opening") return base;
   const shape = LOAN_SHAPE[tx.loan_action];
   return {
     ...base,

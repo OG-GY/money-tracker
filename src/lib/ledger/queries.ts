@@ -436,6 +436,11 @@ export async function createPerson(values: Pick<PersonValues, "name"> & Partial<
   );
 }
 
+/** Set, change or clear a person's starting balance (null direction or 0 clears it). */
+export async function setPersonOpening(personId: string, direction: "they_owe" | "i_owe" | null, amount: number) {
+  unwrap(await db().rpc("set_person_opening", { p_person: personId, p_direction: direction, p_amount: amount }));
+}
+
 export function useCreatePerson() {
   return useLedgerMutation(createPerson);
 }

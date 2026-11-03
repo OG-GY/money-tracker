@@ -20,6 +20,8 @@ export const ENTRY_TYPES = ["expense", "income", "transfer", "loan"] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
 
 export const LOAN_ACTIONS = ["lend", "borrow", "repay_to_me", "repay_by_me", "friend_paid", "write_off"] as const;
+/** Loan actions the entry form offers. A person's starting balance ("opening") is set from their page instead. */
+export type FormLoanAction = (typeof LOAN_ACTIONS)[number];
 
 /** How each loan action moves money (SPEC §2.2). */
 export const LOAN_SHAPE: Record<

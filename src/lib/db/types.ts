@@ -5,7 +5,8 @@ export type AccountKind = "asset" | "person" | "source" | "sink";
 export type AssetSubtype = "bank" | "wallet" | "cash" | "savings";
 export type NeedWant = "need" | "want";
 export type ForWhom = "self" | "gift" | "family" | "household" | "other";
-export type LoanAction = "lend" | "borrow" | "repay_to_me" | "repay_by_me" | "friend_paid" | "write_off";
+/** "opening" = a person's starting balance from before tracking began. */
+export type LoanAction = "lend" | "borrow" | "repay_to_me" | "repay_by_me" | "friend_paid" | "write_off" | "opening";
 export type EntryMethod = "manual" | "voice" | "system";
 export type TxType = "income" | "expense" | "transfer" | "loan" | "opening" | "adjustment";
 

@@ -31,6 +31,7 @@ const LOAN_TEXT: Record<LoanAction, (person: string) => string> = {
   repay_by_me: (p) => `Repaid ${p}`,
   friend_paid: (p) => `${p} paid for me`,
   write_off: (p) => `Wrote off ${p}'s loan`,
+  opening: (p) => `${p} · from before`,
 };
 
 const LOAN_ICON: Record<LoanAction, LucideIcon> = {
@@ -40,6 +41,7 @@ const LOAN_ICON: Record<LoanAction, LucideIcon> = {
   repay_by_me: Undo2,
   friend_paid: HandHeart,
   write_off: Ban,
+  opening: Flag,
 };
 
 export function describeTx(tx: TypedTransaction, m: Model): TxDisplay {
@@ -47,6 +49,19 @@ export function describeTx(tx: TypedTransaction, m: Model): TxDisplay {
   const to = m.accountById.get(tx.to_account_id)?.name ?? "?";
   const category = m.categoryLabel(tx.category_id);
   const venture = tx.venture_id ? m.ventureById.get(tx.venture_id)?.name : null;
+
+  if (tx.loan_action === "opening") {
+    // Opening Balance → person: they owed me; person → Opening Balance: I owed them.
+    const theyOwe = m.accountById.get(tx.to_account_id)?.kind === "person";
+    const person = theyOwe ? to : from;
+    return {
+      title: theyOwe ? `${person} owed you from before` : `You owed ${person} from before`,
+      subtitle: "Starting balance",
+      category: null,
+      icon: Flag,
+      sign: 0,
+    };
+  }
 
   if (tx.loan_action) {
     const personIsFrom = m.accountById.get(tx.from_account_id)?.kind === "person";

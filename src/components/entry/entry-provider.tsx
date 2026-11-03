@@ -34,6 +34,10 @@ export function EntryProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }, []);
   const openEdit = useCallback((tx: TypedTransaction) => {
+    if (tx.loan_action === "opening") {
+      toast("This is a starting balance", { description: "Change it with Edit on the person's page." });
+      return;
+    }
     if (tx.tx_type === "adjustment") {
       toast("Balance corrections can't be edited", {
         description: "Delete it, or run Update balance on the account again.",

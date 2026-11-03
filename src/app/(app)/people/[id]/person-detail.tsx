@@ -8,16 +8,16 @@ import { AnimatedNumber } from "@/components/animated-number";
 import { useEntry } from "@/components/entry/entry-provider";
 import { TxList } from "@/components/transactions/tx-list";
 import { Button } from "@/components/ui/button";
-import type { LoanAction, OpenItem } from "@/lib/db/types";
+import type { OpenItem } from "@/lib/db/types";
 import { formatDay } from "@/lib/dates";
 import { formatPKR, todayInKarachi } from "@/lib/format";
 import { useLedgerModel } from "@/lib/ledger/model";
 import { useOpenItems, usePersonBalances, useTransactions } from "@/lib/ledger/queries";
-import { LOAN_SHAPE } from "@/lib/ledger/schema";
+import { LOAN_SHAPE, type FormLoanAction } from "@/lib/ledger/schema";
 import { cn } from "@/lib/utils";
 import { PersonPanel } from "../person-panel";
 
-const QUICK_ACTIONS: LoanAction[] = ["lend", "borrow", "repay_to_me", "repay_by_me", "friend_paid", "write_off"];
+const QUICK_ACTIONS: FormLoanAction[] = ["lend", "borrow", "repay_to_me", "repay_by_me", "friend_paid", "write_off"];
 
 export function PersonDetail() {
   const { id } = useParams<{ id: string }>();
@@ -184,8 +184,9 @@ function Side({
                     )}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {i.loan_action === "friend_paid" ? "Paid for me" : i.loan_action === "lend" ? "Lent" : "Borrowed"}{" "}
-                    {formatDay(i.occurred_on)}
+                    {i.loan_action === "opening"
+                      ? "From before"
+                      : `${i.loan_action === "friend_paid" ? "Paid for me" : i.loan_action === "lend" ? "Lent" : "Borrowed"} ${formatDay(i.occurred_on)}`}
                     {i.note && ` · ${i.note}`}
                   </p>
                   {i.due_date && (
