@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { useEntry } from "@/components/entry/entry-provider";
 import { PageHeader } from "@/components/page-header";
@@ -36,6 +36,8 @@ import {
   usePersonBalances,
   useTransactions,
 } from "@/lib/ledger/queries";
+import { dayTotals } from "@/lib/analytics/compute";
+import { useLedgerRows } from "@/lib/analytics/use-ledger-rows";
 import { cn } from "@/lib/utils";
 import { BreakdownPanel, type Breakdown } from "./home-breakdowns";
 
@@ -52,6 +54,9 @@ export function HomeView() {
   const summary = usePeriodSummary(start, end);
   const balances = useBalances();
   const recent = useTransactions({ limit: 6 });
+  // The recent list is only a slice; day totals come from the whole ledger.
+  const ledgerRows = useLedgerRows();
+  const totalsByDay = useMemo(() => (ledgerRows.data ? dayTotals(ledgerRows.data) : undefined), [ledgerRows.data]);
   const { openNew } = useEntry();
   const openItems = useOpenItems();
   const budget = useBudgetOverview();
@@ -256,7 +261,7 @@ export function HomeView() {
               <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Recent</h2>
               <Link href="/transactions" className="text-sm text-primary">See all</Link>
             </div>
-            <TxList items={recent.data ?? []} empty="No entries yet. Tap the mic or add one manually." />
+            <TxList items={recent.data ?? []} dayTotals={totalsByDay} empty="No entries yet. Tap the mic or add one manually." />
           </motion.section>
         </div>
       </motion.div>

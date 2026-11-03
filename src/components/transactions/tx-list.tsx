@@ -2,9 +2,10 @@
 
 import { animate, motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import { ArrowDown, ArrowUp, Mic, Pencil, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useEntry } from "@/components/entry/entry-provider";
+import { dayTotals as computeDayTotals, type DayTotal } from "@/lib/analytics/compute";
 import type { TypedTransaction } from "@/lib/db/types";
 import { formatDay } from "@/lib/dates";
 import { formatPKR } from "@/lib/format";
@@ -56,8 +57,37 @@ function useDeleteWithUndo() {
   };
 }
 
-/** Mobile: grouped by day with swipe-to-reveal actions. Desktop: sortable table. */
-export function TxList({ items, empty }: { items: TypedTransaction[]; empty?: React.ReactNode }) {
+/** "spent Rs 1,200 · +Rs 25,000" for a day header; nothing when the day had neither. */
+function DayTotalLabel({ total }: { total?: DayTotal }) {
+  if (!total || (!total.spent && !total.earned)) return null;
+  return (
+    <span className="flex items-baseline gap-2 text-xs font-medium normal-case tracking-normal tabular">
+      {total.spent > 0 && (
+        <span>
+          <span className="text-muted-foreground">spent </span>
+          <span className="text-expense">{formatPKR(total.spent)}</span>
+        </span>
+      )}
+      {total.earned > 0 && <span className="text-income">+{formatPKR(total.earned)}</span>}
+    </span>
+  );
+}
+
+/**
+ * Mobile: grouped by day with swipe-to-reveal actions. Desktop: sortable table.
+ * Day headers show what was spent and earned that day. Pass `dayTotals` when the
+ * list is only a slice (e.g. Home's latest entries) so the totals cover the whole day.
+ */
+export function TxList({
+  items,
+  empty,
+  dayTotals,
+}: {
+  items: TypedTransaction[];
+  empty?: React.ReactNode;
+  dayTotals?: Map<string, DayTotal>;
+}) {
+  const totals = useMemo(() => dayTotals ?? computeDayTotals(items), [dayTotals, items]);
   if (!items.length) {
     return (
       <div className="rounded-2xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
@@ -68,16 +98,16 @@ export function TxList({ items, empty }: { items: TypedTransaction[]; empty?: Re
   return (
     <>
       <div className="md:hidden">
-        <MobileList items={items} />
+        <MobileList items={items} totals={totals} />
       </div>
       <div className="hidden md:block">
-        <DesktopTable items={items} />
+        <DesktopTable items={items} totals={totals} />
       </div>
     </>
   );
 }
 
-function MobileList({ items }: { items: TypedTransaction[] }) {
+function MobileList({ items, totals }: { items: TypedTransaction[]; totals: Map<string, DayTotal> }) {
   const groups = useMemo(() => {
     const out: { day: string; items: TypedTransaction[] }[] = [];
     for (const tx of items) {
@@ -93,8 +123,9 @@ function MobileList({ items }: { items: TypedTransaction[] }) {
     <div className="flex flex-col gap-5">
       {groups.map((g) => (
         <section key={g.day}>
-          <h3 className="mb-2 px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {formatDay(g.day)}
+          <h3 className="mb-2 flex items-baseline justify-between gap-3 px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <span>{formatDay(g.day)}</span>
+            <DayTotalLabel total={totals.get(g.day)} />
           </h3>
           <div className="overflow-hidden rounded-2xl border bg-card">
             {g.items.map((tx, i) => (
@@ -193,7 +224,7 @@ function SwipeRow({
 
 type SortKey = "date" | "amount";
 
-function DesktopTable({ items }: { items: TypedTransaction[] }) {
+function DesktopTable({ items, totals }: { items: TypedTransaction[]; totals: Map<string, DayTotal> }) {
   const m = useLedgerModel();
   const { openEdit } = useEntry();
   const deleteWithUndo = useDeleteWithUndo();
@@ -238,11 +269,23 @@ function DesktopTable({ items }: { items: TypedTransaction[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((tx) => {
+          {sorted.map((tx, i) => {
             const d = describeTx(tx, m);
+            // Sorted by date, each new day gets a header row with its totals.
+            const newDay = sort.key === "date" && tx.occurred_on !== sorted[i - 1]?.occurred_on;
             return (
+              <Fragment key={tx.id}>
+              {newDay && (
+                <tr className="border-b bg-muted/40">
+                  <td colSpan={6} className="px-4 py-2">
+                    <div className="flex items-baseline justify-between gap-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                      <span>{formatDay(tx.occurred_on)}</span>
+                      <DayTotalLabel total={totals.get(tx.occurred_on)} />
+                    </div>
+                  </td>
+                </tr>
+              )}
               <tr
-                key={tx.id}
                 onClick={() => openEdit(tx)}
                 className="group cursor-pointer border-b transition-colors last:border-0 hover:bg-muted/50"
               >
@@ -284,6 +327,7 @@ function DesktopTable({ items }: { items: TypedTransaction[] }) {
                   </button>
                 </td>
               </tr>
+              </Fragment>
             );
           })}
         </tbody>

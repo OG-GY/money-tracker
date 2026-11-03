@@ -141,6 +141,21 @@ export function needWant(rows: Row[], range: Range) {
   return { need, want, wantShare: need + want ? (want / (need + want)) * 100 : 0 };
 }
 
+export type DayTotal = { spent: number; earned: number };
+
+/** Spent and earned per day; transfers, loans and corrections don't count. */
+export function dayTotals(rows: Pick<Row, "occurred_on" | "amount" | "tx_type">[]) {
+  const by = new Map<string, DayTotal>();
+  for (const r of rows) {
+    if (r.tx_type !== "expense" && r.tx_type !== "income") continue;
+    const d = by.get(r.occurred_on) ?? { spent: 0, earned: 0 };
+    if (r.tx_type === "expense") d.spent += r.amount;
+    else d.earned += r.amount;
+    by.set(r.occurred_on, d);
+  }
+  return by;
+}
+
 export function dailySpend(rows: Row[], range: Range) {
   const by = new Map<string, number>();
   for (const r of within(rows, range).filter(isExpense)) by.set(r.occurred_on, (by.get(r.occurred_on) ?? 0) + r.amount);
