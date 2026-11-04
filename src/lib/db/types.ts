@@ -30,9 +30,15 @@ export type Account = {
   subtype: AssetSubtype | null;
   on_budget: boolean;
   archived: boolean;
-  meta: { system?: "spending" | "opening_balance"; phone?: string; note?: string };
+  meta: { system?: "spending" | "opening_balance" | "reconciliation"; phone?: string; note?: string };
+  /** Income sources only: which income group it belongs to. */
+  group_id: string | null;
   created_at: string;
 };
+
+export type GroupKind = "spending" | "income";
+/** High-level bucket above categories (spending) or income sources (income). */
+export type Group = { id: string; kind: GroupKind; name: string; sort_order: number };
 
 export type AccountBalance = {
   account_id: string;
@@ -55,6 +61,8 @@ export type Category = {
   is_system: boolean;
   sort_order: number;
   archived: boolean;
+  /** Own group; subcategories without one inherit the parent's. */
+  group_id: string | null;
 };
 
 export type Transaction = {

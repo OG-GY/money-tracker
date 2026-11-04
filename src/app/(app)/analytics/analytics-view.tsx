@@ -8,6 +8,7 @@ import { formatDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { EnvelopeHealth, Savings } from "./budget";
 import { Loans, Ventures } from "./business";
+import { GroupBreakdown } from "./groups";
 import { CashFlow, MoneyFlow, SummaryTiles, WhereItCameFrom } from "./overview";
 import { Leaks, SpendingCalendar, SpendingTreemap, WhereItGoes } from "./spending";
 import { useAnalytics } from "./use-analytics";
@@ -70,6 +71,10 @@ export function AnalyticsView() {
             {tab === "overview" && (
               <>
                 <SummaryTiles a={a} />
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <GroupBreakdown a={a} kind="spending" />
+                  <GroupBreakdown a={a} kind="income" />
+                </div>
                 <WhereItCameFrom a={a} />
                 <CashFlow a={a} />
                 <MoneyFlow a={a} />
@@ -77,6 +82,7 @@ export function AnalyticsView() {
             )}
             {tab === "spending" && (
               <>
+                <GroupBreakdown a={a} kind="spending" />
                 <WhereItGoes a={a} />
                 <Leaks a={a} />
                 <div className="grid gap-4 xl:grid-cols-2">

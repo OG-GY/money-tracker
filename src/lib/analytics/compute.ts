@@ -1,7 +1,7 @@
 // Pure aggregations behind every analytics view (SPEC §6). All exclude
 // transfers and loan movements unless stated; opening balances never count.
 
-import type { Account, Category, ForWhom, TxType } from "@/lib/db/types";
+import type { Account, Category, ForWhom, Group, TxType } from "@/lib/db/types";
 import { addDays, addMonths, monthRange } from "@/lib/dates";
 import { daysBetween, inRange, type Range } from "./period";
 
@@ -23,7 +23,11 @@ export type Row = {
 export type Lookups = {
   accountById: Map<string, Account>;
   catById: Map<string, Category>;
+  /** Spending + income groups; optional so older callers keep working. */
+  groupById?: Map<string, Group>;
 };
+
+export const UNGROUPED = "ungrouped";
 
 const isIncome = (r: Row) => r.tx_type === "income";
 const isExpense = (r: Row) => r.tx_type === "expense";
@@ -115,16 +119,66 @@ export function byParentCategory(rows: Row[], range: Range, l: Lookups): Slice[]
   return [...by].map(([id, amount]) => ({ id, name: catName(id, l), amount })).sort((a, b) => b.amount - a.amount);
 }
 
-export function bySubcategory(rows: Row[], range: Range, parent: string, l: Lookups): Slice[] {
+export function bySubcategory(rows: Row[], range: Range, parent: string, l: Lookups, group?: string): Slice[] {
   const by = new Map<string, number>();
   for (const r of within(rows, range).filter(isExpense)) {
     if (parentId(r.category_id, l) !== parent) continue;
+    if (group && spendingGroupOf(r.category_id, l) !== group) continue;
     const id = r.category_id ?? "uncategorised";
     by.set(id, (by.get(id) ?? 0) + r.amount);
   }
   return [...by]
     .map(([id, amount]) => ({ id, name: id === parent ? `${catName(id, l)} (general)` : catName(id, l), amount }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+// ── Groups (a level above categories / income sources) ──────────────────────
+
+/** A transaction's spending group: its category's own group, else its parent's. */
+export function spendingGroupOf(catId: string | null, l: Lookups) {
+  if (!catId) return UNGROUPED;
+  const c = l.catById.get(catId);
+  const p = c?.parent_id ? l.catById.get(c.parent_id) : undefined;
+  return c?.group_id ?? p?.group_id ?? UNGROUPED;
+}
+
+export const incomeGroupOf = (sourceId: string, l: Lookups) => l.accountById.get(sourceId)?.group_id ?? UNGROUPED;
+
+export const groupName = (id: string, l: Lookups) => (id === UNGROUPED ? "Ungrouped" : (l.groupById?.get(id)?.name ?? "Ungrouped"));
+
+function sumBy<K extends string>(list: Row[], key: (r: Row) => K) {
+  const by = new Map<K, { amount: number; count: number }>();
+  for (const r of list) {
+    const k = key(r);
+    const g = by.get(k) ?? { amount: 0, count: 0 };
+    g.amount += r.amount;
+    g.count++;
+    by.set(k, g);
+  }
+  return by;
+}
+
+export function bySpendingGroup(rows: Row[], range: Range, l: Lookups): (Slice & { count: number })[] {
+  const by = sumBy(within(rows, range).filter(isExpense), (r) => spendingGroupOf(r.category_id, l));
+  return [...by].map(([id, g]) => ({ id, name: groupName(id, l), ...g })).sort((a, b) => b.amount - a.amount);
+}
+
+/** Top-level categories within one spending group (a parent can appear in two groups). */
+export function categoriesInGroup(rows: Row[], range: Range, group: string, l: Lookups): Slice[] {
+  const list = within(rows, range).filter((r) => isExpense(r) && spendingGroupOf(r.category_id, l) === group);
+  const by = sumBy(list, (r) => parentId(r.category_id, l));
+  return [...by].map(([id, g]) => ({ id, name: catName(id, l), amount: g.amount })).sort((a, b) => b.amount - a.amount);
+}
+
+export function byIncomeGroup(rows: Row[], range: Range, l: Lookups): (Slice & { count: number })[] {
+  const by = sumBy(within(rows, range).filter(isIncome), (r) => incomeGroupOf(r.from_account_id, l));
+  return [...by].map(([id, g]) => ({ id, name: groupName(id, l), ...g })).sort((a, b) => b.amount - a.amount);
+}
+
+export function sourcesInGroup(rows: Row[], range: Range, group: string, l: Lookups): (Slice & { count: number })[] {
+  const list = within(rows, range).filter((r) => isIncome(r) && incomeGroupOf(r.from_account_id, l) === group);
+  const by = sumBy(list, (r) => r.from_account_id);
+  return [...by].map(([id, g]) => ({ id, name: l.accountById.get(id)?.name ?? "Unknown", ...g })).sort((a, b) => b.amount - a.amount);
 }
 
 export function byForWhom(rows: Row[], range: Range) {

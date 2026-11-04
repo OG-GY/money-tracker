@@ -18,7 +18,10 @@ export function useAnalytics() {
   const theme = useChartTheme();
   const rows = useMemo(() => rowsQ.data ?? [], [rowsQ.data]);
 
-  const lookups: Lookups = useMemo(() => ({ accountById: m.accountById, catById: m.catById }), [m.accountById, m.catById]);
+  const lookups: Lookups = useMemo(
+    () => ({ accountById: m.accountById, catById: m.catById, groupById: m.groupById }),
+    [m.accountById, m.catById, m.groupById],
+  );
   const months = useMemo(() => (period.today ? lastMonths(period.today, 12) : []), [period.today]);
   const monthLabels = useMemo(() => months.map(formatMonthShort), [months]);
 

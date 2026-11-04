@@ -6,7 +6,17 @@ import { useMemo, useState } from "react";
 import { useEntry } from "@/components/entry/entry-provider";
 import { ResponsivePanel } from "@/components/responsive-panel";
 import { Button } from "@/components/ui/button";
-import { byParentCategory, bySubcategory, incomeBySourceInRange, type Lookups } from "@/lib/analytics/compute";
+import {
+  byIncomeGroup,
+  byParentCategory,
+  bySpendingGroup,
+  bySubcategory,
+  categoriesInGroup,
+  incomeBySourceInRange,
+  sourcesInGroup,
+  type Lookups,
+  type Row,
+} from "@/lib/analytics/compute";
 import type { Range } from "@/lib/analytics/period";
 import { useLedgerRows } from "@/lib/analytics/use-ledger-rows";
 import { formatPKR } from "@/lib/format";
@@ -49,8 +59,12 @@ export function BreakdownPanel({
 function useRowsAndLookups() {
   const rows = useLedgerRows();
   const m = useLedgerModel();
-  const lookups: Lookups = useMemo(() => ({ accountById: m.accountById, catById: m.catById }), [m.accountById, m.catById]);
-  return { rows: rows.data ?? [], lookups, loading: rows.isLoading || m.isLoading };
+  const lookups: Lookups = useMemo(
+    () => ({ accountById: m.accountById, catById: m.catById, groupById: m.groupById }),
+    [m.accountById, m.catById, m.groupById],
+  );
+  // Before the groups migration runs there are none: fall back to flat lists.
+  return { rows: rows.data ?? [], lookups, loading: rows.isLoading || m.isLoading, hasGroups: m.groupById.size > 0 };
 }
 
 function Loading() {
@@ -102,10 +116,12 @@ function ShareRow({
 // ── Earnings: where it came from ─────────────────────────────────────────────
 
 function Earnings({ range }: { range: Range }) {
-  const { rows, lookups, loading } = useRowsAndLookups();
+  const { rows, lookups, loading, hasGroups } = useRowsAndLookups();
+  const [expanded, setExpanded] = useState<string | null>(null);
   if (loading) return <Loading />;
   const sources = incomeBySourceInRange(rows, range, lookups);
   const total = sources.reduce((s, x) => s + x.amount, 0);
+  const groups = byIncomeGroup(rows, range, lookups);
 
   return (
     <div className="flex flex-col gap-4">
@@ -116,7 +132,43 @@ function Earnings({ range }: { range: Range }) {
           {sources.reduce((s, x) => s + x.count, 0)} payments from {sources.length} {sources.length === 1 ? "source" : "sources"}
         </p>
       </div>
-      {sources.length ? (
+      {sources.length && hasGroups ? (
+        // Group first (Job 80%), then the sources inside it.
+        <div className="divide-y">
+          {groups.map((g) => {
+            const isOpen = expanded === g.id;
+            const members = sourcesInGroup(rows, range, g.id, lookups);
+            return (
+              <div key={g.id}>
+                <ShareRow
+                  name={g.name}
+                  amount={g.amount}
+                  share={(g.amount / total) * 100}
+                  meta={`${members.length} ${members.length === 1 ? "source" : "sources"}`}
+                  expandable
+                  open={isOpen}
+                  onClick={() => setExpanded(isOpen ? null : g.id)}
+                />
+                {isOpen && (
+                  <ul className="mb-3 ml-6 flex flex-col gap-2 border-l pl-3 text-sm">
+                    {members.map((s) => (
+                      <li key={s.id} className="flex justify-between gap-3">
+                        <span className="truncate text-muted-foreground">
+                          {s.name} · {s.count}×
+                        </span>
+                        <span className="tabular">
+                          {formatPKR(s.amount)}
+                          <span className="ml-2 text-muted-foreground">{Math.round((s.amount / g.amount) * 100)}%</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : sources.length ? (
         <div className="divide-y">
           {sources.map((s) => (
             <ShareRow key={s.id} name={s.name} amount={s.amount} share={(s.amount / total) * 100} meta={`${s.count}×`} />
@@ -134,12 +186,53 @@ function Earnings({ range }: { range: Range }) {
 
 // ── Spendings: where it went, by category ────────────────────────────────────
 
+/** Categories (expandable to subcategories), optionally limited to one spending group. */
+function CategoryRows({ rows, range, lookups, group }: { rows: Row[]; range: Range; lookups: Lookups; group?: string }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const cats = group ? categoriesInGroup(rows, range, group, lookups) : byParentCategory(rows, range, lookups);
+  const total = cats.reduce((s, c) => s + c.amount, 0);
+  return (
+    <div className="divide-y">
+      {cats.map((c) => {
+        const subs = bySubcategory(rows, range, c.id, lookups, group);
+        const canExpand = subs.length > 1 || (subs.length === 1 && subs[0].id !== c.id);
+        const isOpen = expanded === c.id;
+        return (
+          <div key={c.id}>
+            <ShareRow
+              name={c.name}
+              amount={c.amount}
+              share={(c.amount / (total || 1)) * 100}
+              expandable={canExpand}
+              open={isOpen}
+              onClick={canExpand ? () => setExpanded(isOpen ? null : c.id) : undefined}
+            />
+            {isOpen && (
+              <ul className="mb-3 ml-6 flex flex-col gap-2 border-l pl-3 text-sm">
+                {subs.map((s) => (
+                  <li key={s.id} className="flex justify-between gap-3">
+                    <span className="truncate text-muted-foreground">{s.name}</span>
+                    <span className="tabular">
+                      {formatPKR(s.amount)}
+                      <span className="ml-2 text-muted-foreground">{Math.round((s.amount / c.amount) * 100)}%</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Spendings({ range, today }: { range: Range; today: string }) {
-  const { rows, lookups, loading } = useRowsAndLookups();
+  const { rows, lookups, loading, hasGroups } = useRowsAndLookups();
   const [expanded, setExpanded] = useState<string | null>(null);
   if (loading) return <Loading />;
-  const cats = byParentCategory(rows, range, lookups);
-  const total = cats.reduce((s, c) => s + c.amount, 0);
+  const groups = bySpendingGroup(rows, range, lookups);
+  const total = groups.reduce((s, g) => s + g.amount, 0);
   const daysSoFar = Math.max(Number((today < range.end ? today : range.end).slice(8, 10)), 1);
 
   return (
@@ -149,39 +242,32 @@ function Spendings({ range, today }: { range: Range; today: string }) {
         <p className="text-3xl font-semibold text-expense">{formatPKR(total)}</p>
         <p className="text-sm text-muted-foreground">About {formatPKR(total / daysSoFar)} a day so far</p>
       </div>
-      {cats.length ? (
+      {total && hasGroups ? (
+        // Group first (Personal / Family & home …), then its categories, then subcategories.
         <div className="divide-y">
-          {cats.map((c) => {
-            const subs = bySubcategory(rows, range, c.id, lookups);
-            const canExpand = subs.length > 1 || (subs.length === 1 && subs[0].id !== c.id);
-            const isOpen = expanded === c.id;
+          {groups.map((g) => {
+            const isOpen = expanded === g.id;
             return (
-              <div key={c.id}>
+              <div key={g.id}>
                 <ShareRow
-                  name={c.name}
-                  amount={c.amount}
-                  share={(c.amount / total) * 100}
-                  expandable={canExpand}
+                  name={g.name}
+                  amount={g.amount}
+                  share={(g.amount / total) * 100}
+                  expandable
                   open={isOpen}
-                  onClick={canExpand ? () => setExpanded(isOpen ? null : c.id) : undefined}
+                  onClick={() => setExpanded(isOpen ? null : g.id)}
                 />
                 {isOpen && (
-                  <ul className="mb-3 ml-6 flex flex-col gap-2 border-l pl-3 text-sm">
-                    {subs.map((s) => (
-                      <li key={s.id} className="flex justify-between gap-3">
-                        <span className="truncate text-muted-foreground">{s.name}</span>
-                        <span className="tabular">
-                          {formatPKR(s.amount)}
-                          <span className="ml-2 text-muted-foreground">{Math.round((s.amount / c.amount) * 100)}%</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mb-3 ml-6 border-l pl-3">
+                    <CategoryRows rows={rows} range={range} lookups={lookups} group={g.id} />
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
+      ) : total ? (
+        <CategoryRows rows={rows} range={range} lookups={lookups} />
       ) : (
         <p className="py-6 text-center text-sm text-muted-foreground">Nothing spent yet this month.</p>
       )}

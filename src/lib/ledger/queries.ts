@@ -12,6 +12,8 @@ import type {
   Envelope,
   EnvelopeBalance,
   EnvelopeMove,
+  Group,
+  GroupKind,
   MoveKind,
   OpenItem,
   PeriodSummary,
@@ -45,6 +47,7 @@ export const keys = {
   budget: (month?: string) => [LEDGER, "budget", month ?? "all"] as const,
   moves: (envelopeId?: string) => [LEDGER, "moves", envelopeId ?? "all"] as const,
   snapshots: [LEDGER, "snapshots"] as const,
+  groups: [LEDGER, "groups"] as const,
 };
 
 function unwrap<T>({ data, error }: { data: T | null; error: { message: string } | null }): T {
@@ -142,7 +145,8 @@ export function useCategories() {
     queryKey: keys.categories,
     queryFn: async () =>
       unwrap<Category[]>(
-        await db().from("categories").select("*").eq("archived", false).order("sort_order").order("name"),
+        // Hidden ones too, so old entries keep their names; pickers filter them out.
+        await db().from("categories").select("*").order("sort_order").order("name"),
       ),
     staleTime: 5 * 60_000,
   });
@@ -448,7 +452,7 @@ export function useCreatePerson() {
 /** Rename, change meta, or archive any account (people included). */
 export function useUpdateAccount() {
   return useLedgerMutation(
-    async ({ id, patch }: { id: string; patch: Partial<Pick<Account, "name" | "archived" | "meta" | "on_budget">> }) => {
+    async ({ id, patch }: { id: string; patch: Partial<Pick<Account, "name" | "archived" | "meta" | "on_budget" | "group_id">> }) => {
       unwrap(await db().from("accounts").update(patch).eq("id", id).select("id"));
     },
   );
@@ -527,6 +531,51 @@ export function useUpdateBalance() {
   return useLedgerMutation(({ accountId, balance, date }: { accountId: string; balance: number; date?: string }) =>
     updateBalance(accountId, balance, date),
   );
+}
+
+export function useGroups() {
+  return useQuery({
+    queryKey: keys.groups,
+    queryFn: async () => unwrap<Group[]>(await db().from("groups").select("*").order("sort_order").order("name")),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Default spending/income groups; fills gaps only, never overrides the user's choices. */
+export async function seedGroups() {
+  unwrap(await db().rpc("seed_groups"));
+}
+
+export function useSaveGroup() {
+  return useLedgerMutation(async ({ id, values }: { id?: string; values: { name: string; kind?: GroupKind; sort_order?: number } }) => {
+    if (id) unwrap(await db().from("groups").update({ name: values.name }).eq("id", id).select("id"));
+    else unwrap(await db().from("groups").insert(values).select("id"));
+  });
+}
+
+export function useDeleteGroup() {
+  // Members fall back to "Ungrouped" (FK on delete set null).
+  return useLedgerMutation(async (id: string) => {
+    unwrap(await db().from("groups").delete().eq("id", id).select("id"));
+  });
+}
+
+export type CategoryInput = { name: string; parent_id?: string | null; group_id?: string | null; archived?: boolean };
+
+export function useSaveCategory() {
+  return useLedgerMutation(async ({ id, values }: { id?: string; values: CategoryInput }) => {
+    if (id) {
+      unwrap(await db().from("categories").update(values).eq("id", id).select("id"));
+      return;
+    }
+    // A new subcategory takes its parent's default envelope and need/want.
+    let defaults = {};
+    if (values.parent_id) {
+      const parent = unwrap<Category>(await db().from("categories").select("*").eq("id", values.parent_id).single());
+      defaults = { default_envelope_id: parent.default_envelope_id, default_need_want: parent.default_need_want };
+    }
+    unwrap(await db().from("categories").insert({ ...defaults, ...values, sort_order: 50 }).select("id"));
+  });
 }
 
 export async function seedDefaults() {

@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import type { AssetSubtype } from "@/lib/db/types";
 import { todayInKarachi } from "@/lib/format";
 import { useLedgerModel } from "@/lib/ledger/model";
-import { createAccount, createPerson, createVenture, seedDefaults } from "@/lib/ledger/queries";
+import { createAccount, createPerson, createVenture, seedDefaults, seedGroups } from "@/lib/ledger/queries";
 import { cn } from "@/lib/utils";
 
 type AssetRow = { key: string; name: string; subtype: AssetSubtype; on: boolean; balance: string };
@@ -65,6 +65,8 @@ export function SetupWizard() {
   useEffect(() => {
     let cancelled = false;
     seedDefaults()
+      // Groups come from a later migration; a missing one must not block setup.
+      .then(() => seedGroups().catch(() => {}))
       .then(() => qc.invalidateQueries({ queryKey: ["ledger"] }))
       .then(() => !cancelled && setSeeded(true))
       .catch((e) => toast.error("Couldn't prepare your data", { description: (e as Error).message }));

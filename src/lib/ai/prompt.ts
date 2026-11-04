@@ -68,6 +68,13 @@ Voice: "Ali ne 1000 wapis kar diye Easypaisa mein, aur Sara ko 5000 diye udhaar,
  {"action":"lend","amount":5000,"date":"2026-11-01","from":null,"to":"Sara","category":null,"merchant":null,"venture":null,"for_whom":"self","need_want":null,"due_date":"2026-11-15","note":null,"confidence":0.75,"unknown_names":["Sara"]}
 ]}
 
+Voice: "ghar 30000 bheje Meezan se, aur ammi ke liye bijli ka bill 4800 Easypaisa se"
+{"drafts":[
+ {"action":"expense","amount":30000,"date":"2026-11-01","from":"Meezan","to":"Spending","category":"Family support > Sent home","merchant":null,"venture":null,"for_whom":"family","need_want":"need","due_date":null,"note":null,"confidence":0.92,"unknown_names":[]},
+ {"action":"expense","amount":4800,"date":"2026-11-01","from":"Easypaisa","to":"Spending","category":"Bills > Electricity","merchant":null,"venture":null,"for_whom":"family","need_want":"need","due_date":null,"note":"Home electricity","confidence":0.9,"unknown_names":["Easypaisa"]}
+]}
+(Money sent home / to family is an expense, never a transfer or a loan, unless a person is named as borrowing it.)
+
 Voice: "Mahana balance 200180. Food envelope mein 10000 daal do"
 {"drafts":[
  {"action":"savings_update","amount":200180,"date":"2026-11-01","from":null,"to":"Mahana","category":null,"merchant":null,"venture":null,"for_whom":"self","need_want":null,"due_date":null,"note":null,"confidence":0.9,"unknown_names":["Mahana"]},

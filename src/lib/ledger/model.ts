@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Account, Category, Envelope, Venture } from "@/lib/db/types";
-import { useAccounts, useCategories, useEnvelopes, useVentures } from "./queries";
+import type { Account, Category, Envelope, Group, Venture } from "@/lib/db/types";
+import { useAccounts, useCategories, useEnvelopes, useGroups, useVentures } from "./queries";
 
 export type CategoryOption = Category & { label: string; parentName: string | null };
 
@@ -12,12 +12,14 @@ export function useLedgerModel() {
   const categoriesQ = useCategories();
   const venturesQ = useVentures();
   const envelopesQ = useEnvelopes();
+  const groupsQ = useGroups();
 
   const model = useMemo(() => {
     const all = accountsQ.data ?? [];
     const categories = categoriesQ.data ?? [];
     const allVentures = venturesQ.data ?? [];
     const allEnvelopes = envelopesQ.data ?? [];
+    const groups = groupsQ.data ?? [];
     // Pickers only offer live items; lookups include archived ones for old entries.
     const accounts = all.filter((a) => !a.archived);
 
@@ -25,9 +27,10 @@ export function useLedgerModel() {
     const catById = new Map<string, Category>(categories.map((c) => [c.id, c]));
     const ventureById = new Map<string, Venture>(allVentures.map((v) => [v.id, v]));
     const envelopeById = new Map<string, Envelope>(allEnvelopes.map((e) => [e.id, e]));
+    const groupById = new Map<string, Group>(groups.map((g) => [g.id, g]));
 
     const categoryOptions: CategoryOption[] = categories
-      .filter((c) => !c.is_system)
+      .filter((c) => !c.is_system && !c.archived)
       .map((c) => {
         const parent = c.parent_id ? catById.get(c.parent_id) : undefined;
         return { ...c, parentName: parent?.name ?? null, label: parent ? `${parent.name} › ${c.name}` : c.name };
@@ -39,6 +42,9 @@ export function useLedgerModel() {
       catById,
       ventureById,
       envelopeById,
+      groupById,
+      spendingGroups: groups.filter((g) => g.kind === "spending"),
+      incomeGroups: groups.filter((g) => g.kind === "income"),
       categoryOptions,
       /** Personal envelopes money can be spent from. */
       envelopes: allEnvelopes.filter((e) => e.kind === "personal" && !e.archived),
@@ -63,7 +69,7 @@ export function useLedgerModel() {
       /** A category and all of its children, for filtering by a parent. */
       categoryWithChildren: (id: string) => [id, ...categories.filter((c) => c.parent_id === id).map((c) => c.id)],
     };
-  }, [accountsQ.data, categoriesQ.data, venturesQ.data, envelopesQ.data]);
+  }, [accountsQ.data, categoriesQ.data, venturesQ.data, envelopesQ.data, groupsQ.data]);
 
   return {
     ...model,

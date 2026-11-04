@@ -39,6 +39,12 @@ export default function SettingsPage() {
               Open setup
             </Link>
             <Link
+              href="/settings/categories"
+              className="inline-flex h-11 items-center rounded-lg border px-4 text-sm font-medium hover:bg-muted"
+            >
+              Categories &amp; groups
+            </Link>
+            <Link
               href="/accounts/balances"
               className="inline-flex h-11 items-center rounded-lg border px-4 text-sm font-medium hover:bg-muted"
             >
